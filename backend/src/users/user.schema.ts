@@ -25,9 +25,6 @@ export class User {
   roles: Array<Role>;
   @Prop({ default: Date.now() })
   createdDate: Date;
-  @Prop()
-  @Exclude()
-  refreshToken: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

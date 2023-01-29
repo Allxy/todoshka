@@ -7,11 +7,14 @@ import { BadRequestException } from '@nestjs/common';
 import { AuthDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 import { ForbiddenException } from '@nestjs/common';
-import { Role } from 'src/enums/role.enum';
+import { InjectModel } from '@nestjs/mongoose';
+import { Auth, AuthDocument } from './auth.schema';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectModel(Auth.name) private authModel: Model<AuthDocument>,
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -30,13 +33,12 @@ export class AuthService {
       ...createUserDto,
       password: hash,
     });
-    const tokens = await this.getTokens(
-      newUser._id,
-      newUser.email,
-      newUser.roles,
-    );
-    await this.updateRefreshToken(newUser._id, tokens.refreshToken);
-    return tokens;
+    const payload = {
+      _id: newUser._id,
+      email: newUser.email,
+      roles: newUser.roles,
+    };
+    return await this.updateRefreshToken(newUser._id, payload);
   }
 
   async signIn(data: AuthDto) {
@@ -45,25 +47,41 @@ export class AuthService {
     const passwordMatches = await bcrypt.compare(data.password, user.password);
     if (!passwordMatches)
       throw new BadRequestException('Password is incorrect');
-    const tokens = await this.getTokens(user._id, user.email, user.roles);
-    await this.updateRefreshToken(user._id, tokens.refreshToken);
-    return tokens;
+    const payload = {
+      _id: user._id,
+      email: user.email,
+      roles: user.roles,
+    };
+    return await this.updateRefreshToken(user._id, payload);
   }
 
-  async logout(userId: string) {
-    this.usersService.update(userId, { refreshToken: null });
+  async logout(userId: string, refreshToken: string) {
+    await this.authModel.findOneAndUpdate(
+      { user: userId },
+      { $pull: { refreshTokens: refreshToken } },
+    );
+  }
+
+  async removeAllRefreshTokens(userId: string) {
+    await this.authModel.findOneAndUpdate(
+      { user: userId },
+      { refreshTokens: [] },
+    );
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
-    const user = await this.usersService.findById(userId);
-    if (!user || !user.refreshToken)
+    const auth = await this.authModel
+      .findOne({ user: userId })
+      .populate('user');
+    if (!auth || !auth.refreshTokens.includes(refreshToken))
       throw new ForbiddenException('Access Denied');
-
-    if (refreshToken !== user.refreshToken)
-      throw new ForbiddenException('Access Denied');
-    const tokens = await this.getTokens(user.id, user.email, user.roles);
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
-    return tokens;
+    const payload = {
+      _id: auth.user._id,
+      email: auth.user.email,
+      roles: auth.user.roles,
+    };
+    await this.logout(auth.user._id, refreshToken);
+    return await this.updateRefreshToken(auth.user._id, payload);
   }
 
   async hashData(data: string) {
@@ -71,36 +89,28 @@ export class AuthService {
     return await bcrypt.hash(data, salt);
   }
 
-  async updateRefreshToken(userId: string, refreshToken: string) {
-    await this.usersService.update(userId, {
-      refreshToken,
-    });
+  async updateRefreshToken(userId: string, payload: any) {
+    const tokens = await this.getTokens(payload);
+
+    await this.authModel.updateOne(
+      { user: userId },
+      { $addToSet: { refreshTokens: tokens.refreshToken } },
+      { upsert: true },
+    );
+
+    return tokens;
   }
 
-  async getTokens(userId: string, email: string, roles: Role[]) {
+  async getTokens(payload: any) {
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        {
-          _id: userId,
-          email,
-          roles,
-        },
-        {
-          secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-          expiresIn: '15m',
-        },
-      ),
-      this.jwtService.signAsync(
-        {
-          _id: userId,
-          email,
-          roles,
-        },
-        {
-          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-          expiresIn: '7d',
-        },
-      ),
+      this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+        expiresIn: '15m',
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+        expiresIn: '7d',
+      }),
     ]);
 
     return {

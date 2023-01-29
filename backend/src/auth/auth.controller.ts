@@ -8,7 +8,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
-import { AccessTokenGuard } from 'src/guards/acces-token.guard';
 import { RefreshTokenGuard } from 'src/guards/refresh-token.guard';
 import { CreateUserDto } from 'src/users/dto/create-user.dto';
 import { User } from 'src/users/user.schema';
@@ -31,10 +30,12 @@ export class AuthController {
     return response.status(HttpStatus.OK).json(token);
   }
 
-  @UseGuards(AccessTokenGuard)
+  @UseGuards(RefreshTokenGuard)
   @Get('/logout')
   logout(@CurrentUser() user: User) {
-    this.authService.logout(user['_id']);
+    const userId = user['_id'];
+    const refreshToken = user['refreshToken'];
+    this.authService.logout(userId, refreshToken);
   }
 
   @UseGuards(RefreshTokenGuard)
