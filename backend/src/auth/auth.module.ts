@@ -7,10 +7,12 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { UsersModule } from 'src/users/users.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Auth, AuthSchema } from './auth.schema';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
     JwtModule.register({}),
+    PassportModule,
     MongooseModule.forFeature([{ name: Auth.name, schema: AuthSchema }]),
     UsersModule,
   ],

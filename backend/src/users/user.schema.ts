@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Exclude } from 'class-transformer';
 import { Transform } from 'class-transformer';
 import { Document } from 'mongoose';
-import { Role } from '../enums/role.enum';
+import { Role } from '../auth/enums/role.enum';
 
 export type UserDocument = User & Document;
 

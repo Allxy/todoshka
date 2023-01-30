@@ -8,30 +8,28 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UseInterceptors } from '@nestjs/common/decorators';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
-import { Roles } from 'src/decorators/roles.decorator';
-import { Role } from 'src/enums/role.enum';
-import { AccessTokenGuard } from '../guards/acces-token.guard';
-import { RolesGuard } from '../guards/roles.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { Role } from '../auth/enums/role.enum';
+import { AccessTokenGuard } from '../auth/guards/acces-token.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import MongooseClassSerializerInterceptor from '../utils/mongoSerializeInterceptor';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserDocument } from './user.schema';
 import { UsersService } from './users.service';
 
 @UseInterceptors(MongooseClassSerializerInterceptor(User))
-@UseGuards(AccessTokenGuard)
+@UseGuards(AccessTokenGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
-  @UseGuards(AccessTokenGuard)
   @Get('/me')
   getMe(@CurrentUser() user) {
     return user;
@@ -44,7 +42,6 @@ export class UsersController {
     return this.usersService.findById(id);
   }
 
-  @UseGuards(AccessTokenGuard)
   @Patch('/me')
   updateMe(
     @Body() updateUserDto: UpdateUserDto,

@@ -4,12 +4,12 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { BadRequestException } from '@nestjs/common';
-import { AuthDto } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
 import { ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Auth, AuthDocument } from './auth.schema';
 import { Model } from 'mongoose';
+import { SigninDto } from './dto/signin.dto';
 
 @Injectable()
 export class AuthService {
@@ -41,7 +41,7 @@ export class AuthService {
     return await this.updateRefreshToken(newUser._id, payload);
   }
 
-  async signIn(data: AuthDto) {
+  async signIn(data: SigninDto) {
     const user = await this.usersService.findByEmail(data.email);
     if (!user) throw new BadRequestException('User does not exist');
     const passwordMatches = await bcrypt.compare(data.password, user.password);
@@ -101,15 +101,19 @@ export class AuthService {
     return tokens;
   }
 
+  private getConfProp(key: string) {
+    return this.configService.get<string>(key);
+  }
+
   async getTokens(payload: any) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: '15m',
+        secret: this.getConfProp('JWT_ACCESS_SECRET'),
+        expiresIn: this.getConfProp('JWT_ACCESS_EXPIRES') || '15m',
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: '7d',
+        secret: this.getConfProp('JWT_REFRESH_SECRET'),
+        expiresIn: this.getConfProp('JWT_REFRESH_EXPIRES') || '15d',
       }),
     ]);
 

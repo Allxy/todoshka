@@ -7,25 +7,25 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
-import { RefreshTokenGuard } from 'src/guards/refresh-token.guard';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { User } from 'src/users/user.schema';
 import { AuthService } from './auth.service';
-import { AuthDto } from './dto/auth.dto';
+import { SigninDto } from './dto/signin.dto';
+import { SignupDto } from './dto/signup.dto';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
 
 @Controller('/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('/signup')
-  async signUp(@Res() response, @Body() user: CreateUserDto) {
+  async signUp(@Res() response, @Body() user: SignupDto) {
     const tokens = await this.authService.signUp(user);
     return response.status(HttpStatus.CREATED).json(tokens);
   }
 
   @Post('/signin')
-  async signIn(@Res() response, @Body() user: AuthDto) {
+  async signIn(@Res() response, @Body() user: SigninDto) {
     const token = await this.authService.signIn(user);
     return response.status(HttpStatus.OK).json(token);
   }
