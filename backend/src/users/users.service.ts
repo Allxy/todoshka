@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { NotFoundException } from '@nestjs/common/exceptions';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, RefType } from 'mongoose';
 import { User, UserDocument } from 'src/users/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -12,15 +11,19 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const createdUser = new this.userModel(createUserDto);
-    return createdUser.save();
+    return await createdUser.save();
   }
 
   async findAll(): Promise<UserDocument[]> {
-    return this.userModel.find().exec();
+    return await this.userModel.find();
   }
 
-  async findById(id: string): Promise<UserDocument> {
-    return this.userModel.findById(id);
+  async findById(id: RefType): Promise<UserDocument> {
+    const user = await this.userModel.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 
   async findByEmail(email: string): Promise<UserDocument> {
@@ -28,23 +31,14 @@ export class UsersService {
   }
 
   async update(
-    id: string,
-    updateUserDto: UpdateUserDto,
+    user: UserDocument,
+    update: UpdateUserDto,
   ): Promise<UserDocument> {
-    const res = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { new: true })
-      .exec();
-    if (!res) {
-      throw new NotFoundException('User not found');
-    }
+    const res = await user.updateOne(update);
     return res;
   }
 
-  async remove(id: string): Promise<UserDocument> {
-    const res = await this.userModel.findByIdAndDelete(id).exec();
-    if (!res) {
-      throw new NotFoundException('User not found');
-    }
-    return;
+  async remove(user: UserDocument) {
+    return await user.deleteOne();
   }
 }

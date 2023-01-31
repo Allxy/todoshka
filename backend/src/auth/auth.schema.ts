@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Exclude, Transform } from 'class-transformer';
+import { Exclude, Transform, Type } from 'class-transformer';
 import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/user.schema';
 
@@ -11,6 +11,7 @@ export class Auth {
   _id: string;
   @Exclude()
   __v: number;
+  @Type(() => User)
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true })
   user: User;
   @Prop({ type: Array<string>, default: [] })

@@ -56,17 +56,19 @@ export class AuthService {
   }
 
   async logout(userId: string, refreshToken: string) {
-    await this.authModel.findOneAndUpdate(
+    const update = await this.authModel.findOneAndUpdate(
       { user: userId },
       { $pull: { refreshTokens: refreshToken } },
     );
+    return { success: !!update };
   }
 
   async removeAllRefreshTokens(userId: string) {
-    await this.authModel.findOneAndUpdate(
+    const update = await this.authModel.findOneAndUpdate(
       { user: userId },
       { refreshTokens: [] },
     );
+    return { success: !!update };
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
@@ -86,7 +88,7 @@ export class AuthService {
 
   async hashData(data: string) {
     const salt = await bcrypt.genSalt(10);
-    return await bcrypt.hash(data, salt);
+    return bcrypt.hash(data, salt);
   }
 
   async updateRefreshToken(userId: string, payload: any) {

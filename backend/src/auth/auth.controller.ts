@@ -2,47 +2,44 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   HttpStatus,
   Post,
-  Res,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { User } from 'src/users/user.schema';
+import { ValidationPipe } from 'src/shared/pipes/validataion.pipe';
 import { AuthService } from './auth.service';
 import { SigninDto } from './dto/signin.dto';
 import { SignupDto } from './dto/signup.dto';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { JwtRefreshPayload } from './strategies/refresh-token.strategy';
 
 @Controller('/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @HttpCode(HttpStatus.CREATED)
   @Post('/signup')
-  async signUp(@Res() response, @Body() user: SignupDto) {
-    const tokens = await this.authService.signUp(user);
-    return response.status(HttpStatus.CREATED).json(tokens);
+  signUp(@Body(ValidationPipe) user: SignupDto) {
+    return this.authService.signUp(user);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post('/signin')
-  async signIn(@Res() response, @Body() user: SigninDto) {
-    const token = await this.authService.signIn(user);
-    return response.status(HttpStatus.OK).json(token);
+  signIn(@Body(ValidationPipe) user: SigninDto) {
+    return this.authService.signIn(user);
   }
 
   @UseGuards(RefreshTokenGuard)
   @Get('/logout')
-  logout(@CurrentUser() user: User) {
-    const userId = user['_id'];
-    const refreshToken = user['refreshToken'];
-    this.authService.logout(userId, refreshToken);
+  logout(@CurrentUser() payload: JwtRefreshPayload) {
+    return this.authService.logout(payload._id, payload.refreshToken);
   }
 
   @UseGuards(RefreshTokenGuard)
   @Get('/refresh')
-  refreshTokens(@CurrentUser() user: User) {
-    const userId = user['_id'];
-    const refreshToken = user['refreshToken'];
-    return this.authService.refreshTokens(userId, refreshToken);
+  refreshTokens(@CurrentUser() payload: JwtRefreshPayload) {
+    return this.authService.refreshTokens(payload._id, payload.refreshToken);
   }
 }
